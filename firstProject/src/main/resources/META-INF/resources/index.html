@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>K8s AI Investigator</title>
+<style>
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --surface2: #1c2128;
+    --border:   #30363d;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --accent:   #388bfd;
+    --accent2:  #1f6feb;
+    --green:    #3fb950;
+    --red:      #f85149;
+    --yellow:   #d29922;
+    --orange:   #fb8500;
+    --purple:   #bc8cff;
+    --radius:   8px;
+    --font:     'Inter', system-ui, sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;}
+  a{color:var(--accent);text-decoration:none;}
+
+  /* ── Top bar ──────────────────────────────── */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 28px;border-bottom:1px solid var(--border);
+    background:var(--surface);position:sticky;top:0;z-index:100;
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.1rem;}
+  .logo svg{width:28px;height:28px;}
+  .badge{font-size:.65rem;background:var(--accent2);color:#fff;padding:2px 7px;border-radius:99px;font-weight:600;letter-spacing:.05em;}
+
+  /* cluster selector */
+  .controls{display:flex;align-items:center;gap:10px;}
+  select,button{
+    background:var(--surface2);border:1px solid var(--border);
+    color:var(--text);border-radius:var(--radius);
+    padding:7px 14px;font-size:.85rem;cursor:pointer;transition:.15s;
+  }
+  select:hover,button:hover{border-color:var(--accent);}
+  button.primary{background:var(--accent2);border-color:var(--accent2);font-weight:600;}
+  button.primary:hover{background:#1a5cc9;}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+
+  /* ── Main layout ──────────────────────────── */
+  main{max-width:1300px;margin:0 auto;padding:28px 24px;}
+
+  /* ── Summary cards ────────────────────────── */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px;}
+  .card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:18px 20px;
+  }
+  .card-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+  .card-value{font-size:2rem;font-weight:700;line-height:1;}
+  .card-sub{font-size:.78rem;color:var(--muted);margin-top:4px;}
+  .card.green{border-top:3px solid var(--green);}
+  .card.red{border-top:3px solid var(--red);}
+  .card.yellow{border-top:3px solid var(--yellow);}
+  .card.blue{border-top:3px solid var(--accent);}
+  .card.purple{border-top:3px solid var(--purple);}
+
+  /* ── Tabs ─────────────────────────────────── */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+  .tab{
+    padding:9px 18px;font-size:.85rem;border-radius:var(--radius) var(--radius) 0 0;
+    border:1px solid transparent;border-bottom:none;cursor:pointer;
+    color:var(--muted);background:transparent;transition:.15s;
+  }
+  .tab:hover{color:var(--text);}
+  .tab.active{
+    background:var(--surface);border-color:var(--border);
+    color:var(--text);font-weight:600;border-bottom-color:var(--surface);
+  }
+  .tab-content{display:none;animation:fade .2s ease;}
+  .tab-content.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* ── Tables ───────────────────────────────── */
+  .table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:.83rem;}
+  th{
+    text-align:left;padding:10px 14px;background:var(--surface2);
+    color:var(--muted);font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;
+    border-bottom:1px solid var(--border);white-space:nowrap;
+  }
+  td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:var(--surface2);}
+
+  /* ── Badges ────────────────────────────────── */
+  .pill{
+    display:inline-block;padding:2px 9px;border-radius:99px;
+    font-size:.7rem;font-weight:600;letter-spacing:.04em;
+  }
+  .pill.green{background:#1a3a22;color:var(--green);}
+  .pill.red{background:#3a1a1a;color:var(--red);}
+  .pill.yellow{background:#3a2e00;color:var(--yellow);}
+  .pill.blue{background:#0d2a4a;color:var(--accent);}
+  .pill.gray{background:var(--surface2);color:var(--muted);}
+
+  /* ── AI section ───────────────────────────── */
+  .ai-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;}
+  .ai-health-banner{
+    display:flex;align-items:center;gap:14px;padding:18px 22px;
+    border-radius:var(--radius);margin-bottom:22px;font-size:1rem;font-weight:600;
+  }
+  .ai-health-banner.healthy{background:#0e2a1a;border:1px solid var(--green);color:var(--green);}
+  .ai-health-banner.degraded{background:#2a0e0e;border:1px solid var(--red);color:var(--red);}
+  .ai-health-banner svg{width:22px;height:22px;flex-shrink:0;}
+
+  .issue-card{
+    background:var(--surface2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;
+  }
+  .issue-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .issue-resource{font-weight:700;font-size:.95rem;}
+  .issue-meta{display:flex;gap:8px;align-items:center;}
+  .issue-section{margin-top:10px;}
+  .issue-section label{
+    display:block;font-size:.7rem;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;
+  }
+  .issue-section p{font-size:.85rem;line-height:1.5;}
+  .fix-box{
+    background:var(--bg);border:1px solid var(--border);border-radius:6px;
+    padding:10px 14px;font-family:monospace;font-size:.82rem;
+    color:#79c0ff;margin-top:4px;white-space:pre-wrap;word-break:break-all;
+  }
+  .confidence-bar{height:4px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden;}
+  .confidence-fill{height:100%;border-radius:2px;transition:.5s;}
+
+  /* ── Log viewer ───────────────────────────── */
+  .log-box{
+    background:#0d1117;border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px 16px;font-family:'Fira Mono',monospace;font-size:.78rem;
+    color:#8b949e;max-height:360px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+    line-height:1.55;
+  }
+  .log-label{font-weight:700;color:var(--muted);font-size:.78rem;margin:14px 0 6px;display:flex;align-items:center;gap:8px;}
+
+  /* ── Events ───────────────────────────────── */
+  .event-row td:first-child{color:var(--red);font-weight:600;}
+
+  /* ── Empty / error states ─────────────────── */
+  .empty{text-align:center;padding:48px 24px;color:var(--muted);}
+  .empty svg{width:48px;height:48px;opacity:.3;margin-bottom:12px;}
+  .empty p{font-size:.9rem;}
+  .error-msg{background:#2a0e0e;border:1px solid var(--red);color:var(--red);
+    border-radius:var(--radius);padding:14px 18px;font-size:.85rem;margin-bottom:18px;}
+
+  /* ── Spinner ──────────────────────────────── */
+  .spinner{
+    display:inline-block;width:18px;height:18px;
+    border:2px solid var(--border);border-top-color:var(--accent);
+    border-radius:50%;animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-row{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.85rem;padding:12px 0;}
+
+  /* ── Responsive ───────────────────────────── */
+  @media(max-width:640px){
+    header{flex-direction:column;gap:12px;align-items:flex-start;}
+    .cards{grid-template-columns:1fr 1fr;}
+    .tabs{overflow-x:auto;flex-wrap:nowrap;}
+    .tab{white-space:nowrap;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="14" cy="14" r="13" stroke="#388bfd" stroke-width="1.5"/>
+      <path d="M14 5v4M14 19v4M5 14h4M19 14h4" stroke="#388bfd" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="14" cy="14" r="4" fill="#388bfd"/>
+      <path d="M8.5 8.5l2.5 2.5M17 17l2.5 2.5M8.5 19.5l2.5-2.5M17 11l2.5-2.5" stroke="#388bfd" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+    K8s AI Investigator
+    <span class="badge">AI-Powered</span>
+  </div>
+  <div class="controls">
+    <select id="clusterSelect"><option value="">Loading clusters…</option></select>
+    <button class="primary" id="investigateBtn" onclick="runInvestigation()">🔍 Investigate</button>
+  </div>
+</header>
+
+<main>
+  <div id="errorBanner" class="error-msg" style="display:none;"></div>
+
+  <!-- Summary Cards -->
+  <div class="cards">
+    <div class="card blue">
+      <div class="card-label">Nodes</div>
+      <div class="card-value" id="cNodes">—</div>
+      <div class="card-sub" id="cNodesReady">—</div>
+    </div>
+    <div class="card green" id="cardPods">
+      <div class="card-label">Pods</div>
+      <div class="card-value" id="cPods">—</div>
+      <div class="card-sub" id="cPodsHealth">—</div>
+    </div>
+    <div class="card yellow">
+      <div class="card-label">Deployments</div>
+      <div class="card-value" id="cDeploys">—</div>
+      <div class="card-sub" id="cDeploysHealth">—</div>
+    </div>
+    <div class="card red">
+      <div class="card-label">Warning Events</div>
+      <div class="card-value" id="cEvents">—</div>
+      <div class="card-sub" id="cEventsInfo">last investigation</div>
+    </div>
+    <div class="card purple">
+      <div class="card-label">AI Health</div>
+      <div class="card-value" id="cAiHealth">—</div>
+      <div class="card-sub" id="cAiIssues">—</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('pods',this)">⬡ Pods</div>
+    <div class="tab" onclick="switchTab('nodes',this)">🖥 Nodes</div>
+    <div class="tab" onclick="switchTab('deployments',this)">🚀 Deployments</div>
+    <div class="tab" onclick="switchTab('events',this)">⚡ Events</div>
+    <div class="tab" onclick="switchTab('logs',this)">📋 Logs</div>
+    <div class="tab" onclick="switchTab('ai',this)">🤖 AI Analysis</div>
+  </div>
+
+  <!-- PODS TAB -->
+  <div id="tab-pods" class="tab-content active">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Health</th></tr></thead>
+        <tbody id="podsBody"><tr><td colspan="4" class="empty"><p>Run an investigation to see pod data.</p></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NODES TAB -->
+  <div id="tab-nodes" class="tab-content">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Ready</th><th>Kubelet</th><th>OS</th><th>CPU</th><th>Memory</th><th>Conditions</th></tr></thead>
+        <tbody id="nodesBody"><tr><td colspan="7" class="empty"><p>Run an investigation to see node data.</p></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DEPLOYMENTS TAB -->
+  <div id="tab-deployments" class="tab-content">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Namespace</th><th>Desired</th><th>Ready</th><th>Available</th><th>Health</th><th>Status</th></tr></thead>
+        <tbody id="deploysBody"><tr><td colspan="7" class="empty"><p>Run an investigation to see deployment data.</p></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EVENTS TAB -->
+  <div id="tab-events" class="tab-content">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Namespace</th><th>Reason</th><th>Message</th></tr></thead>
+        <tbody id="eventsBody"><tr><td colspan="4" class="empty"><p>Run an investigation to see warning events.</p></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LOGS TAB -->
+  <div id="tab-logs" class="tab-content">
+    <div id="logsContainer">
+      <div class="empty"><p>Logs from unhealthy pods appear here after an investigation.</p></div>
+    </div>
+  </div>
+
+  <!-- AI ANALYSIS TAB -->
+  <div id="tab-ai" class="tab-content">
+    <div id="aiContainer">
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        <p>Click <strong>Investigate</strong> to collect cluster data, then AI analysis will appear here.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let investigationData = null;
+let aiResult = null;
+
+// ── Tab switching ───────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── On load: fetch clusters ─────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const res  = await fetch('/api/clusters');
+    const list = await res.json();
+    const sel  = document.getElementById('clusterSelect');
+    if (!list || list.length === 0) {
+      sel.innerHTML = '<option value="">No kubectl contexts found</option>';
+      return;
+    }
+    sel.innerHTML = list.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  } catch (e) {
+    showError('Could not reach backend. Is the Quarkus server running? ' + e.message);
+  }
+});
+
+// ── Main investigation flow ─────────────────────────────────────────────────
+async function runInvestigation() {
+  const context = document.getElementById('clusterSelect').value;
+  if (!context) { showError('Please select a cluster context first.'); return; }
+
+  clearError();
+  setLoading(true);
+
+  try {
+    // Step 1: investigate
+    showLoadingInTabs('Collecting cluster data…');
+    const invRes = await fetch(`/api/investigate/${encodeURIComponent(context)}`, { method: 'POST' });
+    if (!invRes.ok) throw new Error(await invRes.text());
+    investigationData = await invRes.json();
+
+    renderAll(investigationData);
+
+    // Step 2: AI analysis
+    showAiLoading();
+    const aiRes = await fetch(`/api/ai-summary`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(investigationData)
+    });
+    if (!aiRes.ok) throw new Error(await aiRes.text());
+    aiResult = await aiRes.json();
+    renderAi(aiResult);
+    updateAiCard(aiResult);
+
+  } catch (e) {
+    showError('Investigation failed: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Render helpers ──────────────────────────────────────────────────────────
+function renderAll(data) {
+  renderPods(data.pods || []);
+  renderNodes(data.nodes || []);
+  renderDeployments(data.deployments || []);
+  renderEvents(data.events || []);
+  renderLogs(data.logs || {});
+  updateSummaryCards(data);
+}
+
+function renderPods(pods) {
+  const tb = document.getElementById('podsBody');
+  if (!pods.length) { tb.innerHTML = emptyRow(4, 'No pods found.'); return; }
+  const unhealthy = pods.filter(p => !p.healthy).length;
+  document.getElementById('cPods').textContent = pods.length;
+  document.getElementById('cPodsHealth').textContent = `${unhealthy} unhealthy`;
+  document.getElementById('cardPods').className = 'card ' + (unhealthy > 0 ? 'red' : 'green');
+
+  tb.innerHTML = pods.map(p => `
+    <tr>
+      <td style="font-family:monospace;font-size:.8rem">${esc(p.name)}</td>
+      <td><span class="pill gray">${esc(p.namespace)}</span></td>
+      <td>${esc(p.status)}</td>
+      <td>${healthPill(p.healthy)}</td>
+    </tr>`).join('');
+}
+
+function renderNodes(nodes) {
+  const tb = document.getElementById('nodesBody');
+  if (!nodes.length) { tb.innerHTML = emptyRow(7, 'No node data.'); return; }
+  const notReady = nodes.filter(n => !n.ready).length;
+  document.getElementById('cNodes').textContent = nodes.length;
+  document.getElementById('cNodesReady').textContent = `${notReady} not ready`;
+
+  tb.innerHTML = nodes.map(n => {
+    const pressures = (n.conditions || [])
+      .filter(c => c.type !== 'Ready' && c.status === 'True')
+      .map(c => `<span class="pill red">${esc(c.type)}</span>`)
+      .join(' ') || '<span class="pill gray">None</span>';
+    return `
+    <tr>
+      <td style="font-weight:600">${esc(n.name)}</td>
+      <td>${healthPill(n.ready)}</td>
+      <td style="font-family:monospace;font-size:.78rem">${esc(n.kubeletVersion||'?')}</td>
+      <td>${esc(n.os||'linux')}</td>
+      <td>${esc(n.cpuCapacity||'?')}</td>
+      <td>${esc(n.memoryCapacity||'?')}</td>
+      <td>${pressures}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDeployments(deps) {
+  const tb = document.getElementById('deploysBody');
+  if (!deps.length) { tb.innerHTML = emptyRow(7, 'No deployments found.'); return; }
+  const unhealthy = deps.filter(d => !d.healthy).length;
+  document.getElementById('cDeploys').textContent = deps.length;
+  document.getElementById('cDeploysHealth').textContent = `${unhealthy} unhealthy`;
+
+  tb.innerHTML = deps.map(d => `
+    <tr>
+      <td style="font-weight:600;font-family:monospace;font-size:.8rem">${esc(d.name)}</td>
+      <td><span class="pill gray">${esc(d.namespace)}</span></td>
+      <td style="text-align:center">${d.desiredReplicas}</td>
+      <td style="text-align:center">${d.readyReplicas}</td>
+      <td style="text-align:center">${d.availableReplicas}</td>
+      <td>${healthPill(d.healthy)}</td>
+      <td style="font-size:.8rem;color:var(--muted)">${esc(d.statusMessage||'')}</td>
+    </tr>`).join('');
+}
+
+function renderEvents(events) {
+  const tb = document.getElementById('eventsBody');
+  document.getElementById('cEvents').textContent = events.length;
+  if (!events.length) { tb.innerHTML = emptyRow(4, '✅ No warning events — all clear!'); return; }
+
+  tb.innerHTML = events.map(ev => `
+    <tr class="event-row">
+      <td style="font-family:monospace;font-size:.78rem">${esc(ev.name)}</td>
+      <td><span class="pill gray">${esc(ev.namespace)}</span></td>
+      <td><span class="pill yellow">${esc(ev.reason)}</span></td>
+      <td style="font-size:.8rem;max-width:420px">${esc(ev.message)}</td>
+    </tr>`).join('');
+}
+
+function renderLogs(logs) {
+  const el = document.getElementById('logsContainer');
+  const keys = Object.keys(logs);
+  if (!keys.length) {
+    el.innerHTML = '<div class="empty"><p>✅ No unhealthy pods — no logs to show.</p></div>';
+    return;
+  }
+  el.innerHTML = keys.map(k => `
+    <div class="log-label">📄 ${esc(k)}</div>
+    <div class="log-box">${esc(logs[k] || '(empty)')}</div>
+  `).join('');
+}
+
+function updateSummaryCards(data) {
+  const events = data.events || [];
+  document.getElementById('cEvents').textContent = events.length;
+}
+
+function showAiLoading() {
+  document.getElementById('aiContainer').innerHTML = `
+    <div class="ai-panel">
+      <div class="loading-row"><span class="spinner"></span> Running AI analysis on cluster data…</div>
+    </div>`;
+  document.getElementById('cAiHealth').textContent = '…';
+  document.getElementById('cAiIssues').textContent = 'Analyzing';
+}
+
+function renderAi(result) {
+  const healthy = result.overallHealth === 'healthy';
+  const issues  = result.issues || [];
+
+  let html = `<div class="ai-panel">
+    <div class="ai-health-banner ${healthy ? 'healthy' : 'degraded'}">
+      ${healthy
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Cluster is Healthy — no issues detected.'
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg> Cluster is Degraded — ${issues.length} issue${issues.length !== 1 ? 's' : ''} detected.`
+      }
+    </div>`;
+
+  issues.forEach(issue => {
+    const sevClass = { high:'red', medium:'yellow', low:'blue' }[issue.severity] || 'gray';
+    const confColor = issue.confidence > 75 ? 'var(--green)' : issue.confidence > 45 ? 'var(--yellow)' : 'var(--red)';
+    html += `
+    <div class="issue-card">
+      <div class="issue-header">
+        <div class="issue-resource">🔧 ${esc(issue.affectedResource)}</div>
+        <div class="issue-meta">
+          <span class="pill ${sevClass}">${esc(issue.severity)} severity</span>
+          <span style="font-size:.75rem;color:var(--muted)">confidence: ${issue.confidence}%</span>
+        </div>
+      </div>
+      <div class="confidence-bar"><div class="confidence-fill" style="width:${issue.confidence}%;background:${confColor}"></div></div>
+      <div class="issue-section"><label>Root Cause</label><p>${esc(issue.rootCause)}</p></div>
+      <div class="issue-section"><label>Suggested Fix</label><div class="fix-box">${esc(issue.suggestedFix)}</div></div>
+    </div>`;
+  });
+
+  if (healthy) {
+    html += `<p style="color:var(--muted);font-size:.85rem;margin-top:12px">
+      All nodes, pods, and deployments are operating normally. Continue monitoring.</p>`;
+  }
+  html += '</div>';
+  document.getElementById('aiContainer').innerHTML = html;
+}
+
+function updateAiCard(result) {
+  const healthy = result.overallHealth === 'healthy';
+  const issues  = (result.issues || []).length;
+  document.getElementById('cAiHealth').textContent  = healthy ? '✅' : '⚠️';
+  document.getElementById('cAiIssues').textContent  = healthy ? 'No issues' : `${issues} issue${issues!==1?'s':''}`;
+}
+
+// ── Utils ───────────────────────────────────────────────────────────────────
+function healthPill(ok) {
+  return ok
+    ? '<span class="pill green">Healthy</span>'
+    : '<span class="pill red">Unhealthy</span>';
+}
+
+function emptyRow(cols, msg) {
+  return `<tr><td colspan="${cols}" style="text-align:center;padding:28px;color:var(--muted);font-size:.85rem">${msg}</td></tr>`;
+}
+
+function showLoadingInTabs(msg) {
+  ['podsBody','nodesBody','deploysBody','eventsBody'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<tr><td colspan="10"><div class="loading-row"><span class="spinner"></span>${msg}</div></td></tr>`;
+  });
+  document.getElementById('logsContainer').innerHTML = `<div class="loading-row"><span class="spinner"></span>${msg}</div>`;
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('investigateBtn');
+  btn.disabled = on;
+  btn.textContent = on ? '⏳ Investigating…' : '🔍 Investigate';
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+}
+
+function clearError() {
+  document.getElementById('errorBanner').style.display = 'none';
+}
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
