@@ -199,13 +199,6 @@ src/main/java/org/example/
 
 ---
 
-## 📜 License
-
-MIT License
-
-Free to use, modify, and distribute.
-
----
 
 ## 🤝 Contributions
 
