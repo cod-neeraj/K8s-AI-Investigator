@@ -152,41 +152,6 @@ Issues detected
 
 ---
 
-## 📦 Build for Production
-
-### Standard JAR
-
-```bash
-./mvnw package
-java -jar target/quarkus-app/quarkus-run.jar
-```
-
-### Fat JAR
-
-```bash
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-java -jar target/*-runner.jar
-```
-
----
-
-## 🐳 Docker
-
-```bash
-./mvnw package
-docker build -f src/main/docker/Dockerfile.jvm -t k8s-ai-investigator .
-```
-
-Run:
-
-```bash
-docker run -e OPENROUTER_API_KEY=your-key \
- -v ~/.kube:/root/.kube:ro \
- -p 8080:8080 k8s-ai-investigator
-```
-
----
-
 ## 🔄 Change AI Model
 
 ```bash
